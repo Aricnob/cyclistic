@@ -1,0 +1,143 @@
+-- Create temp table for all months
+USE Cyclistic
+GO
+CREATE VIEW annual_table AS 
+SELECT *
+FROM Cyclistic.dbo.[202201-divvy-tripdata]
+UNION ALL 
+SELECT *
+FROM Cyclistic.dbo.[202202-divvy-tripdata]
+UNION ALL 
+SELECT *
+FROM Cyclistic.dbo.[202203-divvy-tripdata]
+UNION ALL 
+SELECT *
+FROM Cyclistic.dbo.[202204-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202205-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202206-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202207-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202208-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202209-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202210-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202211-divvy-tripdata]
+UNION ALL
+SELECT *
+FROM Cyclistic.dbo.[202212-divvy-tripdata]
+
+
+-- CALLING ON annual_table --
+
+-- Number of Members and NonMembers
+SELECT member_casual,
+       COUNT(member_casual) AS all_rides
+FROM annual_table
+GROUP BY member_casual
+-- Number of Rides
+SELECT member_casual,
+       COUNT(member_casual) AS all_rides
+FROM annual_table
+WHERE DATEDIFF(second, started_at, ended_at) >= 0
+GROUP BY member_casual
+
+
+-- Rideable type and average ride length
+SELECT 
+	rideable_type, 
+	member_casual, 
+	AVG(DATEDIFF(second, started_at, ended_at)) AS average_ride_length, 
+	COUNT(rideable_type) AS total
+FROM annual_table
+WHERE rideable_type IS NOT NULL
+GROUP BY rideable_type, member_casual
+ORDER BY  average_ride_length
+
+
+-- Number of rides per month for casual and member
+SELECT DATENAME(month, started_at) AS month_name, 
+	member_casual,
+	SUM(CASE WHEN member_casual = 'casual' THEN 1 ELSE 0 END) AS casual_count,
+    SUM(CASE WHEN member_casual = 'member' THEN 1 ELSE 0 END) AS member_count
+FROM annual_table
+GROUP BY DATENAME(month, started_at), member_casual
+ORDER BY DATENAME(month, started_at)
+
+
+-- Avg Ride Length Month Membership
+SELECT DATENAME(month, started_at) AS month_name,
+       member_casual,
+       AVG(DATEDIFF(second, started_at, ended_at)) AS average_ride_length
+FROM annual_table
+WHERE DATEDIFF(second, started_at, ended_at) >= 0
+GROUP BY DATENAME(month, started_at), member_casual
+ORDER BY  DATENAME(month, started_at)
+
+
+-- Number of Rides Over A Day
+SELECT member_casual,
+       COUNT(DATEDIFF(second, started_at, ended_at)) AS number_of_rides_over_day
+FROM annual_table
+WHERE DATEDIFF(second, started_at, ended_at) >= 86400
+GROUP BY member_casual
+
+
+-- Max Ride Length Per Month
+SELECT DATENAME(month, started_at) AS month_name, 
+	MAX(DATEDIFF(second, started_at, ended_at)) AS max_ride_length, 
+	member_casual
+FROM annual_table
+GROUP BY DATENAME(month, started_at), member_casual
+ORDER BY DATENAME(month, started_at)
+
+
+-- Mode day of the week
+SELECT 
+    DATENAME(month, t.started_at) AS month_name,
+    t.member_casual,
+    t.day_of_the_week AS mode_day_of_the_week
+FROM (
+    SELECT 
+        started_at,
+        member_casual,
+        day_of_the_week,
+        ROW_NUMBER() OVER (PARTITION BY DATENAME(month, started_at), member_casual ORDER BY COUNT(*) DESC) AS rn
+    FROM annual_table
+    GROUP BY started_at, member_casual, day_of_the_week
+) AS t
+WHERE rn = 1
+ORDER BY month_name
+
+
+-- Average number of rides day of the week
+SELECT DATENAME(month, started_at) AS month_name,
+       member_casual,
+	   day_of_the_week,
+       SUM(CASE WHEN member_casual = 'casual' THEN 1 ELSE 0 END) AS casual_count,
+    SUM(CASE WHEN member_casual = 'member' THEN 1 ELSE 0 END) AS member_count
+FROM annual_table
+GROUP BY DATENAME(month, started_at), member_casual, day_of_the_week
+ORDER BY DATENAME(month, started_at)
+
+
+-- Average rider length day of the week
+SELECT DATENAME(month, started_at) AS month_name,
+       member_casual,
+	   day_of_the_week,
+       AVG(DATEDIFF(second, started_at, ended_at)) AS average_ride_length
+FROM annual_table
+WHERE DATEDIFF(second, started_at, ended_at) >= 0
+GROUP BY DATENAME(month, started_at), member_casual, day_of_the_week
+ORDER BY  DATENAME(month, started_at), day_of_the_week
